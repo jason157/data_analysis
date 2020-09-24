@@ -1,0 +1,5 @@
+-- import data
+LOAD DATA INFILE "data/source.txt" INTO TABLE DATASET.SOURCE_DATASET FIELDS TERMINATED BY '|';
+
+-- export data
+SELECT  *  FROM   DATASET.RESULT   INTO   OUTFILE   "data/result.txt"  FIELDS  TERMINATED BY '|'
