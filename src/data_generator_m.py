@@ -10,25 +10,13 @@ Date  : 2020-09-25
                  quantity numbers of the dataset
                  save_file_name :the file name your want to save to
 """
-import random
-import string
+import os
 import time
+import string
+import random
 
-
-def timer(function):
-    """
-    装饰器函数timer
-    :param function:想要计时的函数
-    :return:
-    """
-    def wrapper(*args, **kwargs):
-        time_start = time.time()
-        res = function(*args, **kwargs)
-        cost_time = time.time() - time_start
-        print("【%s】运行时间：【%s】秒" % (function.__name__, cost_time))
-        return res
-
-    return wrapper
+# from src.data_generator import *
+from tempfile import TemporaryFile, NamedTemporaryFile
 
 
 def random_string_generator(type, length):
@@ -55,18 +43,6 @@ def random_string_generator(type, length):
         raise Exception("para Type Error")
 
 
-# @timer
-def source_dataset_generator(quantity):
-    """
-    源数据集生成器
-    :param number:数量
-    :return:
-    """
-    for n in range(quantity):
-        yield source_data_string_generator()
-
-
-@timer
 def target_dataset_generator_number(quantity):
     """
     目标数据字符生成,号码
@@ -77,7 +53,6 @@ def target_dataset_generator_number(quantity):
         yield target_dataset_string_generator("number")
 
 
-@timer
 def target_dataset_generator_username(quantity):
     """
     目标数据字符生成，用户名
@@ -114,37 +89,56 @@ def target_dataset_string_generator(type):
         return random_string_generator(4, 1) + random_string_generator(2, random.randint(5, 13))
 
 
-def save_file(dataset, file_name):
+def save_file(dataset):
     """
     把生成的数据集写入文件中
     :param dataset: 数据集，必须是可迭代数据类型
     :param file_name: 写入的文件名
     :return:
     """
+    f = TemporaryFile(mode="w+")
+    for line in dataset:
+        f.write(line)
+        f.write('\n')
+    return f
 
-    with open(file_name, 'w', encoding='utf8') as f:
-        for line in dataset:
-            f.write(line)
-            f.write('\n')
 
-
-def extract_generator(i_data, quantity):
-    tmp = []
+def source_dataset_generator(quantity):
+    """
+    源数据集生成器
+    :param number:数量
+    :return:
+    """
+    start_time = time.time()
+    data_list = []
     for n in range(quantity):
-        tmp.append(next(i_data))
-    return tmp
+        data_list.append(source_data_string_generator())
+    print("Timimg recorder : generate %f lines cost %f seconds" % (quantity, time.time() - start_time))
+    return data_list
 
 
-def dealing_data(func, quantity, save_file_name):
-    data = func(quantity)
-    save_file(data, save_file_name)
-    # save_file(target_dataset_generator_username(quantity), save_file_name)
+def save_file_with_file_name(dataset):
+    # print("=======测试 save_file_with_file_name ========")
+    tmp_path = "./tmp"
+    if not os.path.exists(tmp_path):
+        os.mkdir(tmp_path)
+    tmp_f = NamedTemporaryFile(mode="w+", dir=tmp_path, delete=False)
+    for line in dataset:
+        # print("element:", line)
+        tmp_f.write(line)
+        tmp_f.write('\n')
+    # 这是读取文件的关键，把光标移动到前面
+    tmp_f.seek(0)
+    # print("in func:", tmp_f.readlines())
+    tmp_f.close()
+    return tmp_f.name
 
 
 def main(argv):
     import os
     import math
     import multiprocessing
+    time1 = time.time()
 
     help_string = """Usage:
                      ./{scrip_name} dataset_type  quantity save_file_name
@@ -182,37 +176,47 @@ def main(argv):
     LINE_REMAINDER = quantity - BASE_LINE_QUANTITY * LINE_TIMES
 
     cores = multiprocessing.cpu_count()
-    pool = multiprocessing.Pool(processes=cores)
+    pool1 = multiprocessing.Pool(processes=cores)
+    pool2 = multiprocessing.Pool(processes=cores)
     data_list = []
+    tmp_file_list = []
+    argv_list = []
+    quantity_list = []
 
     if LINE_TIMES > 0:
-        print("M start !")
+        print("M start ! now the time is %s " % str(time.time() - time1))
         for n in range(LINE_TIMES):
-            pool.apply_async(dealing_data, (source_dataset_generator, BASE_LINE_QUANTITY, save_file_name))
-    pool.apply_async(dealing_data, (source_dataset_generator, LINE_REMAINDER, save_file_name))
+            # data_list.append(source_dataset_generator(LINE_TIMES))
+            quantity_list.append(BASE_LINE_QUANTITY)
+    # data_list.append(source_dataset_generator(LINE_TIMES))
+    quantity_list.append(LINE_REMAINDER)
+    res1 = pool1.map_async(source_dataset_generator, quantity_list)
+    data_list = res1.get()
+    pool1.close()
+    print("generator data done! cost time %s" % str(time.time() - time1))
+    res = pool2.map_async(save_file_with_file_name, data_list)
+    tmp_file_list = res.get()
+    print("tmp file dealing done! cost time %s " % str(time.time() - time1))
+    with open(save_file_name, 'w') as f:
+        for file in tmp_file_list:
+            t = open(file, 'r')
+            t.seek(0)
+            for line in t.readlines():
+                f.write(line)
+                # f.write("\n")
+            t.close()
+            os.remove(file)
 
-
-    # if dataset_type == "source":
-    #     data = source_dataset_generator(quantity)
-    #
-    # elif dataset_type == "target_number":
-    #     data = target_dataset_generator_number(quantity)
-    # elif dataset_type == "target_username":
-    #     data = target_dataset_generator_username(quantity)
-    # else:
-    #     data = None
-    # if data is None:
-    #     print("data generate error !")
-    #     exit(2)
-    pool.close()
-    pool.join()
-    print("done!")
+    print("save file done!cost time %s" % str(time.time() - time1))
 
 
 if __name__ == '__main__':
     import sys
     time_start = time.time()
     main(sys.argv)
+    # 测试
+    # argv = ("test_data_generator_m.py", "source", 50, "../data/test1.txt")
+    # main(argv)
     cost_time = time.time() - time_start
     print("【%s】运行时间：【%s】秒" % ("main", cost_time))
 
