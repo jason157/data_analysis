@@ -4,8 +4,7 @@ from src.data_match import main
 class DataMatchTestCase(unittest.TestCase):
     def test_main(self):
         print("start testing!!")
-        main()
-
+        # main()
 
 
 if __name__ == '__main__':

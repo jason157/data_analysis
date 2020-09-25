@@ -4,7 +4,7 @@
 -- create source table
 USE DATASET;
 CREATE TABLE SOURCE_DATASET(
-    number INT(13) not null ,
+    number VARCHAR(13) not null ,
     username VARCHAR(14) not null ,
     email VARCHAR(30)  not null -- ,
     -- UNIQUE INDEX(number)
@@ -17,7 +17,7 @@ CREATE INDEX index_SOURCE_DATASET ON SOURCE_DATASET(number);
 -- create target table
 USE DATASET;
 CREATE TABLE TARGET_DATASET(
-    number INT(13) not null
+    number VARCHAR(13) not null
 );
 
 -- create index fot target dataset
