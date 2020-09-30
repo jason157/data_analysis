@@ -103,6 +103,30 @@ def save_file(dataset):
     return f
 
 
+def target_dataset_generator_number(quantity):
+    """
+    目标数据字符生成,号码
+    :param quantity 数量
+    :return: 13位手机号码列表
+    """
+    data_list = []
+    for n in range(quantity):
+        data_list.append(target_dataset_string_generator("number"))
+    return data_list
+
+
+def target_dataset_generator_username(quantity):
+    """
+    目标数据字符生成，用户名
+    :param quantity 数量
+    :return: 用户名列表
+    """
+    data_list = []
+    for n in range(quantity):
+        data_list.append(target_dataset_string_generator("username"))
+    return data_list
+
+
 def source_dataset_generator(quantity):
     """
     源数据集生成器
@@ -113,7 +137,7 @@ def source_dataset_generator(quantity):
     data_list = []
     for n in range(quantity):
         data_list.append(source_data_string_generator())
-    print("Timimg recorder : generate %f lines cost %f seconds" % (quantity, time.time() - start_time))
+    # print("Timing recorder : generate %f lines cost %f seconds" % (quantity, time.time() - start_time))
     return data_list
 
 
@@ -178,9 +202,7 @@ def main(argv):
     cores = multiprocessing.cpu_count()
     pool1 = multiprocessing.Pool(processes=cores)
     pool2 = multiprocessing.Pool(processes=cores)
-    data_list = []
-    tmp_file_list = []
-    argv_list = []
+
     quantity_list = []
 
     if LINE_TIMES > 0:
@@ -190,22 +212,28 @@ def main(argv):
             quantity_list.append(BASE_LINE_QUANTITY)
     # data_list.append(source_dataset_generator(LINE_TIMES))
     quantity_list.append(LINE_REMAINDER)
-    res1 = pool1.map_async(source_dataset_generator, quantity_list)
+    # res1 = pool1.map_async(source_dataset_generator, quantity_list)
+    if dataset_type == "source":
+        res1 = pool1.map_async(source_dataset_generator, quantity_list)
+    elif dataset_type == "target_number":
+        res1 = pool1.map_async(target_dataset_generator_number, quantity_list)
+    elif dataset_type == "target_username":
+        res1 = pool1.map_async(target_dataset_generator_username, quantity_list)
+    else:
+        res1 = None
+        exit(3)
+
     data_list = res1.get()
     pool1.close()
     print("generator data done! cost time %s" % str(time.time() - time1))
-    res = pool2.map_async(save_file_with_file_name, data_list)
-    tmp_file_list = res.get()
-    print("tmp file dealing done! cost time %s " % str(time.time() - time1))
+
+    # print("data_list", data_list)
+
     with open(save_file_name, 'w') as f:
-        for file in tmp_file_list:
-            t = open(file, 'r')
-            t.seek(0)
-            for line in t.readlines():
-                f.write(line)
-                # f.write("\n")
-            t.close()
-            os.remove(file)
+        for data_block in data_list:
+            for element in data_block:
+                f.write(element)
+                f.write("\n")
 
     print("save file done!cost time %s" % str(time.time() - time1))
 
